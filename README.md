@@ -9,3 +9,9 @@
 * [Code Examples](#code-examples)
 * [Status](#status)
 * [Contact](#contact)
+
+## Technologies and Tools
+* Python 
+* R
+* Alteryx
+* Tableau
