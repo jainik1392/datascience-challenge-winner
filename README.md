@@ -24,3 +24,26 @@ It is a supervise learning problem in which we predicted continuous variable sal
 * R
 * Alteryx
 * Tableau
+
+## Code Examples
+
+```
+## Data Transformations
+
+train_rec <- recipe(Sales ~ ., data = train) %>%
+  step_log(Sales,Foottraffic,Total_Population,Total_HH)%>%
+  prep(data = train,retain = TRUE)
+
+train_rec_std <- recipe(Sales ~ ., data = train) %>%
+  step_log(Sales,Foottraffic,Total_Population,Total_HH)%>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes())%>%
+  prep(data = train,retain = TRUE)
+
+train_tbl <-bake(train_rec, newdata = train)
+train_tbl_std <-bake(train_rec_std, newdata = train)
+
+train_panel<-pdata.frame(train_tbl,index = c("Plant","FISCAL_YEAR_PERIOD"))
+train_panel_std<-pdata.frame(train_tbl_std,index = c("Plant","FISCAL_YEAR_PERIOD"))
+
+```
