@@ -10,6 +10,15 @@
 * [Status](#status)
 * [Contact](#contact)
 
+## General info
+
+It is a supervise learning problem in which we predicted continuous variable sales. The steps involved are merging of the data, feature preprocessing and engineering, model building and evaluation of the model with the right metric and finally prediction of sales
+
+## Screenshots
+![Example screenshot](./img/types_of_data.png)
+![Example screenshot](./img/sales_trend.png)
+![Example screenshot](./img/sales_among_plants.png)
+
 ## Technologies and Tools
 * Python 
 * R
