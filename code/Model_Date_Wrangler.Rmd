@@ -1,0 +1,202 @@
+---
+title: "Lennox_Panel_Model"
+author: "Data Wranglers"
+date: "March 28, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(plm)
+library(recipes)
+library(car)
+library(lubridate)
+library(zoo)
+```
+
+## Importing data and initial cleaning
+
+
+
+```{r cars}
+lennox<-read_csv('Final_Model_Data_reduced_store.csv')
+
+lennox<-lennox%>%
+  filter(!Sales==0)
+
+lennox$Trade_Area_Size[lennox$Trade_Area_Size=="small Market"]="Small Market"
+
+lennox$FISCAL_YEAR_PERIOD=as.yearmon(lennox$FISCAL_YEAR_PERIOD, format = '%m/%d/%Y')
+
+head(lennox)
+
+```
+
+## Data Transformations
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+lennox_rec <- recipe(Sales ~ ., data = lennox) %>%
+  step_log(Sales,Foottraffic,Total_Population,Total_HH)%>%
+  prep(data = lennox,retain = TRUE)
+
+lennox_rec_std <- recipe(Sales ~ ., data = lennox) %>%
+  step_log(Sales,Foottraffic,Total_Population,Total_HH)%>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes())%>%
+  prep(data = lennox,retain = TRUE)
+
+lennox_tbl <-bake(lennox_rec, newdata = lennox)
+lennox_tbl_std <-bake(lennox_rec_std, newdata = lennox)
+
+lennox_panel<-pdata.frame(lennox_tbl,index = c("Plant","FISCAL_YEAR_PERIOD"))
+lennox_panel_std<-pdata.frame(lennox_tbl_std,index = c("Plant","FISCAL_YEAR_PERIOD"))
+
+```
+
+## Data models
+
+Panel data models like Fixed Effects and Random Effects allows us to remove unobserved Heterogenity in the model and therefore more accurate estimates of variable effects than OLS model  
+
+```{r}
+form=Sales~Store_Size+Foottraffic+I(Foottraffic^2)+PhoneCalls+MktgAdopt+WCMTDtoQuota+I(WCMTDtoQuota^2)+VOC+PartsSuppliesMTDtoQuota+WCMTDtoQuota*Store_Size
+
+#OLS model
+plmpooled <- plm(form, data=lennox_panel, model = "pooling")
+summary(plmpooled)
+
+#Fixed Effect Model
+plmwithin <- plm(form, data=lennox_panel, model = "within")
+summary(plmwithin)
+
+#Random Effect Model
+plmrandom <- plm(form, data = lennox_panel, model = "random")
+summary(plmrandom)
+```
+
+
+## variable Comparision
+
+For variable comparision, we can use standardised variables so each variable is in similar scale
+
+```{r}
+
+#OLS model
+plmpooled <- plm(form, data=lennox_panel_std, model = "pooling")
+summary(plmpooled)
+
+#Fixed Effect Model
+plmwithin <- plm(form, data=lennox_panel_std, model = "within")
+summary(plmwithin)
+
+#Random Effect Model
+plmrandom <- plm(form, data = lennox_panel_std, model = "random")
+summary(plmrandom)
+
+```
+
+
+## Plots to clear estimated coefficients
+
+```{r}
+ggplot(data=lennox,aes(x=WCMTDtoQuota,y=Sales, color=Store_Size))+
+  geom_point()+
+  geom_smooth(se = FALSE)
+
+ggplot(data=lennox,aes(x=MktgAdopt,y=Sales, color=Store_Size))+
+  geom_point()+
+  geom_smooth(se = FALSE)
+```
+
+
+#Prediction Model
+
+Inorder to predict sales we create a OLS model using the formula established since prediction doesnot require accurate estimators.
+
+```{r}
+
+lennox_train<-read_csv('Final_Model_Data_reduced.csv')
+
+lennox_train<-lennox_train%>%
+  filter(!Sales==0)
+
+lennox_train$Trade_Area_Size[lennox_train$Trade_Area_Size=="small Market"]="Small Market"
+
+lennox_train$FISCAL_YEAR_PERIOD=as.yearmon(lennox_train$FISCAL_YEAR_PERIOD, format = '%m/%d/%Y')
+lennox_train$month<- format(lennox_train$FISCAL_YEAR_PERIOD, "%b")
+
+lennox_rec_train <- recipe(Sales ~ ., data = lennox_train) %>%
+  step_log(Sales,Foottraffic,Total_Population,Total_HH)%>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes())%>%
+  prep(data = lennox_train,retain = TRUE)
+
+lennox_train_tbl <-bake(lennox_rec_train, newdata = lennox_train)
+
+head(lennox_train_tbl)
+
+form_new=Sales~Plant+Category+FISCAL_YEAR_PERIOD+Store_Size+Foottraffic+I(Foottraffic^2)+PhoneCalls+MktgAdopt+WCMTDtoQuota+I(WCMTDtoQuota^2)+VOC+PartsSuppliesMTDtoQuota+WCMTDtoQuota*Store_Size
+
+lmmod<-lm(form_new, data=lennox_train_tbl)
+summary(lmmod)
+
+```
+
+
+
+##Prediction Validation Set
+
+```{r}
+
+lennox_valid<-read_csv('Final_Model_Data_validation.csv')
+lennox_valid$Trade_Area_Size[lennox_valid$Trade_Area_Size=="small Market"]="Small Market"
+lennox_valid$FISCAL_YEAR_PERIOD=as.yearmon(lennox_valid$FISCAL_YEAR_PERIOD, format = '%m/%d/%Y')
+lennox_valid$month<- format(lennox_valid$FISCAL_YEAR_PERIOD, "%b")
+
+lennox_valid_tbl <-bake(lennox_rec_train, newdata = lennox_valid)
+
+lennox_valid_tbl<-lennox_valid_tbl%>%
+  filter(!is.na(lennox_valid_tbl$Plant))
+
+lennox_valid_tbl$Salespred<-predict(lmmod,newdata=lennox_valid_tbl)
+
+head(lennox_valid_tbl)
+
+
+lennox_valid_tbl$resid<-lennox_valid_tbl$Sales-lennox_valid_tbl$Salespred
+
+colnames(lennox_valid_tbl)[colSums(is.na(lennox_valid_tbl))>0]
+
+print(paste("R2 Validation -->",as.character(1-var(lennox_valid_tbl$resid)/var(lennox_valid_tbl$Sales))))
+
+
+write.csv(lennox_valid_tbl,"Final_Model_Data_validation_pred.csv")
+
+```
+
+
+##Predicting Test Set
+
+```{r}
+lennox_Test<-read_csv('Final_Model_Data_Test.csv')
+lennox_Test$Trade_Area_Size[lennox_Test$Trade_Area_Size=="small Market"]="Small Market"
+lennox_Test$FISCAL_YEAR_PERIOD=as.yearmon(lennox_Test$FISCAL_YEAR_PERIOD, format = '%m/%d/%Y')
+
+lennox_Test_tbl <-bake(lennox_rec_train, newdata = lennox_Test)
+
+lennox_Test_tbl<-lennox_Test_tbl%>%
+  filter(!is.na(lennox_Test_tbl$Plant))
+
+lennox_Test_tbl$Salespred<-predict(lmmod,newdata=lennox_Test_tbl)
+
+head(lennox_Test_tbl)
+
+
+colnames(lennox_Test_tbl)[colSums(is.na(lennox_Test_tbl))>0]
+
+write.csv(lennox_Test_tbl,"Final_Model_Data_Test_pred.csv")
+```
+
+
