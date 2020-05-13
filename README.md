@@ -46,4 +46,36 @@ train_tbl_std <-bake(train_rec_std, newdata = train)
 train_panel<-pdata.frame(train_tbl,index = c("Plant","FISCAL_YEAR_PERIOD"))
 train_panel_std<-pdata.frame(train_tbl_std,index = c("Plant","FISCAL_YEAR_PERIOD"))
 
+
 ```
+## Exponential Time Smoothing
+x <- c("plant", "date", "KPI","value")
+colnames(data)<-x
+for (kpi in names(storemet)[3:9]){
+  for ( plant in unique(storemet$ï..ï..Plant)){
+    tsdata<-ts(storemet[storemet$ï..ï..Plant==plant,kpi],start=c(2013,1),end=c(2014,12),frequency=12)
+    HWmodel<-ets(tsdata,model = "ZZA")
+    seas_fcast <- forecast(HWmodel, h=12)
+    data<-rbind(data,data.frame(rep(plant,12),as.yearmon(time(seas_fcast$mean)), rep(kpi,12),as.numeric(seas_fcast$mean)))
+    print(plant)
+    }
+}
+```
+
+```
+form=Sales~Store_Size+Foottraffic+I(Foottraffic^2)+PhoneCalls+MktgAdopt+WCMTDtoQuota+I(WCMTDtoQuota^2)+VOC+PartsSuppliesMTDtoQuota+WCMTDtoQuota*Store_Size
+
+#OLS model
+plmpooled <- plm(form, data=train_panel, model = "pooling")
+summary(plmpooled)
+
+#Fixed Effect Model
+plmwithin <- plm(form, data=train_panel, model = "within")
+summary(plmwithin)
+
+#Random Effect Model
+plmrandom <- plm(form, data = train_panel, model = "random")
+summary(plmrandom)
+```
+
+
