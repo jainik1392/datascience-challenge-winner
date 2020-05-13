@@ -18,7 +18,7 @@ It is a supervise learning problem in which we predicted continuous variable sal
 ![Example screenshot](./src/types_of_data.JPG)
 ![Example screenshot](./src/sales_trend.JPG)
 ![Example screenshot](./src/sales_among_plants.JPG)
-
+![Example screenshot](./src/kpis.JPG)
 ## Technologies and Tools
 * Python 
 * R
