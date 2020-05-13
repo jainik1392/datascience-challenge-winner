@@ -45,8 +45,7 @@ train_tbl_std <-bake(train_rec_std, newdata = train)
 
 train_panel<-pdata.frame(train_tbl,index = c("Plant","FISCAL_YEAR_PERIOD"))
 train_panel_std<-pdata.frame(train_tbl_std,index = c("Plant","FISCAL_YEAR_PERIOD"))
-
-
+```
 ```
 ## Exponential Time Smoothing
 x <- c("plant", "date", "KPI","value")
@@ -63,6 +62,7 @@ for (kpi in names(storemet)[3:9]){
 ```
 
 ```
+## Model Training
 form=Sales~Store_Size+Foottraffic+I(Foottraffic^2)+PhoneCalls+MktgAdopt+WCMTDtoQuota+I(WCMTDtoQuota^2)+VOC+PartsSuppliesMTDtoQuota+WCMTDtoQuota*Store_Size
 
 #OLS model
